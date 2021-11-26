@@ -2,6 +2,7 @@ package com.itmo.phone_book;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class InMemoryStorage implements Storage {
     private final List<Contact> contacts = new ArrayList<>();
@@ -37,8 +38,10 @@ public class InMemoryStorage implements Storage {
     }
 
     @Override
-    public Contact find(int id) {
-        return null;
+    public Optional<Contact> find(int id) {
+        return contacts.stream()
+                .filter(c -> c.getId() == id)
+                .findAny();
     }
 
     @Override

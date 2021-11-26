@@ -1,5 +1,7 @@
 package com.itmo.phone_book;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
 
 public class PhoneBook {
@@ -42,6 +44,15 @@ public class PhoneBook {
                 case "add":
                     add(scanner);
                     break;
+                case "update":
+                    update(scanner, Integer.parseInt(commandArgs[1]));
+                    break;
+                case "find":
+                    final String keyword = commandArgs.length > 1
+                            ? commandArgs[1]
+                            : "";
+                    find(keyword);
+                    break;
                 case "quit":
                     System.out.println("Bye");
                     return;
@@ -51,6 +62,29 @@ public class PhoneBook {
                     break;
             }
         }
+    }
+
+    private void find(String keyword) {
+        final List<Contact> contacts = keyword.isBlank()
+                ? storage.find()
+                : storage.find(keyword);
+
+        System.out.println("Найдены контакты");
+        contacts.forEach(System.out::println);
+    }
+
+    private void update(Scanner scanner, int id) {
+        final Optional<Contact> contactOpt = storage.find(id);
+        contactOpt.ifPresentOrElse(
+                contact -> {
+                    fillContact(scanner, contact);
+                    Contact savedContact = storage.save(contact);
+
+                    System.out.println("Изменён контакт:");
+                    System.out.println(savedContact);
+                },
+                () -> System.err.println("Contact with id " + id + " not found")
+        );
     }
 
     private void add(Scanner scanner) {
