@@ -1,5 +1,9 @@
 package com.itmo.phone_book;
 
+import com.itmo.phone_book.server.Server;
+import com.itmo.phone_book.server.StorageProxy;
+
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
@@ -19,8 +23,14 @@ public class PhoneBook {
         this.storage = storage;
     }
 
-    public static void main(String[] args) {
-        PhoneBook phoneBook = new PhoneBook(createStorage(args));
+    public static void main(String[] args) throws IOException {
+        final Configuration config = new Configuration(args);
+        final Storage storage = createStorage(config);
+        PhoneBook phoneBook = new PhoneBook(storage);
+        if (config.getMode() == RunMode.SERVER) {
+            new Server(storage, config.getPort()).start();
+        }
+
         phoneBook.start();
     }
 
@@ -127,13 +137,65 @@ public class PhoneBook {
     private Contact createDefaultContact() {
         return new Contact(0, "Anonymous", "Missed address", "666");
     }
-    
-    private static Storage createStorage(String[] args) {
-        if (args.length == 0) {
-            return new InMemoryStorage();
+
+    private static Storage createStorage(Configuration config) throws IOException {
+        return switch (config.getMode()) {
+            case LOCAL -> new InMemoryStorage();
+            case SERVER -> new SynchronizedStorage(new InMemoryStorage());
+            case CLIENT -> {
+                var storage = new StorageProxy(config.getHost(), config.getPort());
+                storage.connect();
+                yield storage;
+            }
+        };
+    }
+
+    private static class Configuration {
+        private final RunMode mode;
+        private int port;
+        private String host;
+
+        public Configuration(String[] args) {
+            this.mode = RunMode.fromArgs(args);
+            if (mode == RunMode.SERVER) {
+                port = Integer.parseInt(args[1]);
+            } else if (mode == RunMode.CLIENT) {
+                final String[] split = args[1].split(":");
+                host = split[0];
+                port = Integer.parseInt(split[1]);
+            }
         }
-        
-        // Здесь будет создание других реализаций Storage
-        return null;
+
+        public RunMode getMode() {
+            return mode;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        public String getHost() {
+            return host;
+        }
+    }
+
+    private enum RunMode {
+        LOCAL,
+        SERVER,
+        CLIENT;
+
+        public static RunMode fromArgs(String[] args) {
+            if (args.length == 0 || "local".equals(args[0])) {
+                return LOCAL;
+            } else if (args.length > 1) {
+                return switch (args[0]) {
+                    case "server" -> SERVER;
+                    case "client" -> CLIENT;
+                    default -> throw new IllegalArgumentException("Unknown mode: " + args[0]);
+                };
+            }
+
+            throw new IllegalArgumentException("Should not happen");
+        }
     }
 }
