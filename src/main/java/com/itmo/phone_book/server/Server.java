@@ -1,44 +1,92 @@
 package com.itmo.phone_book.server;
 
-import com.itmo.phone_book.Contact;
-import com.itmo.phone_book.Storage;
+import com.itmo.phone_book.model.Contact;
+import com.itmo.phone_book.storage.Storage;
+import com.itmo.phone_book.server.message.*;
+import com.itmo.phone_book.utils.IOUtils;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 
-public class Server {
+public class Server implements AutoCloseable {
     private final Storage storage;
     private final int port;
+    private final List<ConnectionServer> connections = new ArrayList<>();
+    private ConnectionListener listener;
 
     public Server(Storage storage, int port) {
         this.storage = storage;
         this.port = port;
     }
 
-    public void start() {
-        new ConnectionListener().start();
+    public synchronized void start() {
+        var listener = new ConnectionListener();
+        listener.start();
+        this.listener = listener;
     }
 
-    private class ConnectionListener extends Thread {
+    public synchronized void stop() throws InterruptedException {
+        if (listener != null) {
+            IOUtils.closeQuietly(listener);
+            listener = null;
+        }
+
+        // Выполняем копию, т.к. каждый остановленный поток автоматически удаляет себя из списка connections,
+        // а мы хотим выполнить join к каждому, чтобы дождаться, пока завершатся все потоки.
+        final var copyConnections = new ArrayList<>(connections);
+        copyConnections.forEach(IOUtils::closeQuietly);
+        for (ConnectionServer con : copyConnections) {
+            con.join();
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        stop();
+    }
+
+    private class ConnectionListener extends Thread implements AutoCloseable {
+        private ServerSocket ssocket;
+
         @Override
         public void run() {
             try (ServerSocket ssocket = new ServerSocket(port)) {
+                this.ssocket = ssocket;
+
                 while (!isInterrupted()) {
                     final Socket socket = ssocket.accept();
 
-                    new ConnectionServer(socket).start();
+                    final ConnectionServer connectionServer = new ConnectionServer(socket);
+                    synchronized (connections) {
+                        connections.add(connectionServer);
+                    }
+                    connectionServer.start();
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                // Можем пропустить вывод ошибки в консоль, если мы знаем, что это был останов.
+                if (!isInterrupted()) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        @Override
+        public void close() throws Exception {
+            interrupt();
+            // Нужно отдельно закрывать сокет, т.к. метод accept() не выбрасывает InterruptedException,
+            // а значит поток из него не выйдет по вызову метода interrupt();
+            if (ssocket != null) {
+                ssocket.close();
             }
         }
     }
 
-    private class ConnectionServer extends Thread {
+    private class ConnectionServer extends Thread implements AutoCloseable {
         private final Socket socket;
 
         private ConnectionServer(Socket socket) {
@@ -60,13 +108,32 @@ public class Server {
                         final List<Contact> found = storage.find(find.getKeyword());
 
                         objOut.writeObject(new Success(found));
+                    } else if (command instanceof FindAll) {
+                        final List<Contact> contacts = storage.find();
+
+                        objOut.writeObject(new Success(contacts));
                     } else {
                         objOut.writeObject(new Failure("Unknown command"));
                     }
                 }
 
-            } catch (IOException | ClassNotFoundException e) {
+            } catch (IOException e) {
+                System.err.println("Client " + socket.getInetAddress() + " disconnected");
+            } catch (ClassNotFoundException e) {
                 e.printStackTrace();
+            } finally {
+                synchronized (connections) {
+                    connections.remove(this);
+                }
+            }
+        }
+
+        @Override
+        public void close() throws Exception {
+            interrupt();
+            // Аналогично с ServerSocket, метод read не завершится по вызову interrupt().
+            if (socket != null) {
+                socket.close();
             }
         }
     }

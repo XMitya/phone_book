@@ -1,4 +1,4 @@
-package com.itmo.phone_book.server;
+package com.itmo.phone_book.server.message;
 
 import java.io.Serializable;
 

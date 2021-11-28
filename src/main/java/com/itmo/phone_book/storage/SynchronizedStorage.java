@@ -1,8 +1,12 @@
-package com.itmo.phone_book;
+package com.itmo.phone_book.storage;
+
+import com.itmo.phone_book.model.Contact;
 
 import java.util.List;
 import java.util.Optional;
 
+// Используем здесь шаблон Decorator, чтобы можно было применить синхронизирующий функционал к любой
+// реализации Storage.
 public class SynchronizedStorage implements Storage {
     private final Storage storage;
 
@@ -33,5 +37,10 @@ public class SynchronizedStorage implements Storage {
     @Override
     public synchronized List<Contact> find(String keyword) {
         return storage.find(keyword);
+    }
+
+    @Override
+    public void close() throws Exception {
+        storage.close();
     }
 }

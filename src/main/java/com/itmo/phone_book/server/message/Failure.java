@@ -1,4 +1,4 @@
-package com.itmo.phone_book.server;
+package com.itmo.phone_book.server.message;
 
 public class Failure implements Response {
     private final String errorMessage;

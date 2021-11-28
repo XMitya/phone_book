@@ -1,6 +1,6 @@
-package com.itmo.phone_book.server;
+package com.itmo.phone_book.server.message;
 
-import com.itmo.phone_book.Contact;
+import com.itmo.phone_book.model.Contact;
 
 public class Save implements Command {
     private final Contact contact;

@@ -1,4 +1,6 @@
-package com.itmo.phone_book;
+package com.itmo.phone_book.storage;
+
+import com.itmo.phone_book.model.Contact;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +36,7 @@ public class InMemoryStorage implements Storage {
 
     @Override
     public Contact remove(int id) {
+        // TODO реализуйте удаление
         return null;
     }
 
@@ -51,6 +54,7 @@ public class InMemoryStorage implements Storage {
 
     @Override
     public List<Contact> find(String keyword) {
+        // TODO переписать на Stream API
         List<Contact> result = new ArrayList<>();
         for (Contact contact : contacts) {
             if (contains(contact, keyword)) {
@@ -70,5 +74,10 @@ public class InMemoryStorage implements Storage {
     private boolean contains(/* nullable */ String string, String keyword) {
         return string != null
                 && string.toLowerCase().contains(keyword.toLowerCase());
+    }
+
+    @Override
+    public void close() throws Exception {
+        // Do nothing
     }
 }

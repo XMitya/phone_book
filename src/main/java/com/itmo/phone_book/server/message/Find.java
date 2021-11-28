@@ -1,4 +1,4 @@
-package com.itmo.phone_book.server;
+package com.itmo.phone_book.server.message;
 
 public class Find implements Command {
     private final String keyword;

@@ -1,7 +1,8 @@
 package com.itmo.phone_book.server;
 
-import com.itmo.phone_book.Contact;
-import com.itmo.phone_book.Storage;
+import com.itmo.phone_book.model.Contact;
+import com.itmo.phone_book.storage.Storage;
+import com.itmo.phone_book.server.message.*;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -55,7 +56,13 @@ public class StorageProxy implements Storage, Closeable {
 
     @Override
     public List<Contact> find() {
-        return null;
+        try {
+            objOut.writeObject(new FindAll());
+            final Response response = (Response) objIn.readObject();
+            return getResponse(response);
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException("Failed finding contacts", e);
+        }
     }
 
     @Override

@@ -1,7 +1,11 @@
 package com.itmo.phone_book;
 
+import com.itmo.phone_book.model.Contact;
 import com.itmo.phone_book.server.Server;
 import com.itmo.phone_book.server.StorageProxy;
+import com.itmo.phone_book.storage.InMemoryStorage;
+import com.itmo.phone_book.storage.Storage;
+import com.itmo.phone_book.storage.SynchronizedStorage;
 
 import java.io.IOException;
 import java.util.List;
@@ -12,6 +16,7 @@ public class PhoneBook {
     private static final String HELP_STRING = """
             Команды:
             find [keyword]
+            remove <id>
             add
             update <id>
             quit
@@ -23,15 +28,19 @@ public class PhoneBook {
         this.storage = storage;
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
         final Configuration config = new Configuration(args);
-        final Storage storage = createStorage(config);
-        PhoneBook phoneBook = new PhoneBook(storage);
-        if (config.getMode() == RunMode.SERVER) {
-            new Server(storage, config.getPort()).start();
+        try (final Storage storage = createStorage(config)) {
+            PhoneBook phoneBook = new PhoneBook(storage);
+            if (config.getMode() == RunMode.SERVER) {
+                try (Server server = new Server(storage, config.getPort())) {
+                    server.start();
+                    phoneBook.start();
+                }
+            } else {
+                phoneBook.start();
+            }
         }
-
-        phoneBook.start();
     }
 
     public void start() {
@@ -79,7 +88,7 @@ public class PhoneBook {
                 ? storage.find()
                 : storage.find(keyword);
 
-        System.out.println("Найдены контакты");
+        System.out.println("Найдено контактов: " + contacts.size());
         contacts.forEach(System.out::println);
     }
 

@@ -1,4 +1,4 @@
-package com.itmo.phone_book;
+package com.itmo.phone_book.model;
 
 import java.io.Serializable;
 
