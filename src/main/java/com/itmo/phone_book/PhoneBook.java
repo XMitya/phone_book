@@ -6,6 +6,8 @@ import com.itmo.phone_book.server.StorageProxy;
 import com.itmo.phone_book.storage.InMemoryStorage;
 import com.itmo.phone_book.storage.Storage;
 import com.itmo.phone_book.storage.SynchronizedStorage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -13,6 +15,8 @@ import java.util.Optional;
 import java.util.Scanner;
 
 public class PhoneBook {
+    private final static Logger log = LoggerFactory.getLogger(PhoneBook.class);
+
     private static final String HELP_STRING = """
             Команды:
             find [keyword]
@@ -30,6 +34,7 @@ public class PhoneBook {
 
     public static void main(String[] args) throws Exception {
         final Configuration config = new Configuration(args);
+        log.info("PhoneBook started with configuration: {}", config);
         try (final Storage storage = createStorage(config)) {
             PhoneBook phoneBook = new PhoneBook(storage);
             if (config.getMode() == RunMode.SERVER) {
@@ -185,6 +190,15 @@ public class PhoneBook {
 
         public String getHost() {
             return host;
+        }
+
+        @Override
+        public String toString() {
+            return "Configuration{" +
+                    "mode=" + mode +
+                    ", port=" + port +
+                    ", host='" + host + '\'' +
+                    '}';
         }
     }
 

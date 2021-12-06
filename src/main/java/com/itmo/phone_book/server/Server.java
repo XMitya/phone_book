@@ -4,6 +4,8 @@ import com.itmo.phone_book.model.Contact;
 import com.itmo.phone_book.storage.Storage;
 import com.itmo.phone_book.server.message.*;
 import com.itmo.phone_book.utils.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -14,6 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Server implements AutoCloseable {
+    private final static Logger log = LoggerFactory.getLogger(Server.class);
+
     private final Storage storage;
     private final int port;
     private final List<ConnectionServer> connections = new ArrayList<>();
@@ -28,6 +32,8 @@ public class Server implements AutoCloseable {
         var listener = new ConnectionListener();
         listener.start();
         this.listener = listener;
+
+        log.info("Server started on port: {}", port);
     }
 
     public synchronized void stop() throws InterruptedException {
@@ -99,7 +105,13 @@ public class Server implements AutoCloseable {
                 final var objIn = new ObjectInputStream(socket.getInputStream());
                 final var objOut = new ObjectOutputStream(socket.getOutputStream())) {
                 while (!isInterrupted()) {
+                    objOut.reset();
                     final Command command = (Command) objIn.readObject();
+
+                    if (log.isDebugEnabled()) {
+                        log.debug("Received command: {} from {}", command, socket);
+                    }
+
                     if (command instanceof Save save) {
                         final Contact saved = storage.save(save.getContact());
 
