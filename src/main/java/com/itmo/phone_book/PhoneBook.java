@@ -4,12 +4,14 @@ import com.itmo.phone_book.model.Contact;
 import com.itmo.phone_book.server.Server;
 import com.itmo.phone_book.server.StorageProxy;
 import com.itmo.phone_book.storage.InMemoryStorage;
+import com.itmo.phone_book.storage.PGStorage;
 import com.itmo.phone_book.storage.Storage;
 import com.itmo.phone_book.storage.SynchronizedStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
@@ -152,7 +154,7 @@ public class PhoneBook {
         return new Contact(0, "Anonymous", "Missed address", "666");
     }
 
-    private static Storage createStorage(Configuration config) throws IOException {
+    private static Storage createStorage(Configuration config) throws IOException, SQLException {
         return switch (config.getMode()) {
             case LOCAL -> new InMemoryStorage();
             case SERVER -> new SynchronizedStorage(new InMemoryStorage());
@@ -161,6 +163,7 @@ public class PhoneBook {
                 storage.connect();
                 yield storage;
             }
+            case POSTGRES -> new PGStorage(config.dbName, config.userName, config.password);
         };
     }
 
@@ -168,6 +171,9 @@ public class PhoneBook {
         private final RunMode mode;
         private int port;
         private String host;
+        private String dbName;
+        private String userName;
+        private String password;
 
         public Configuration(String[] args) {
             this.mode = RunMode.fromArgs(args);
@@ -177,6 +183,10 @@ public class PhoneBook {
                 final String[] split = args[1].split(":");
                 host = split[0];
                 port = Integer.parseInt(split[1]);
+            } else if (mode == RunMode.POSTGRES) {
+                dbName = args[1];
+                userName = args[2];
+                password = args[3];
             }
         }
 
@@ -205,7 +215,8 @@ public class PhoneBook {
     private enum RunMode {
         LOCAL,
         SERVER,
-        CLIENT;
+        CLIENT,
+        POSTGRES;
 
         public static RunMode fromArgs(String[] args) {
             if (args.length == 0 || "local".equals(args[0])) {
@@ -214,6 +225,7 @@ public class PhoneBook {
                 return switch (args[0]) {
                     case "server" -> SERVER;
                     case "client" -> CLIENT;
+                    case "postgres" -> POSTGRES;
                     default -> throw new IllegalArgumentException("Unknown mode: " + args[0]);
                 };
             }
